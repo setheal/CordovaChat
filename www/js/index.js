@@ -17,6 +17,7 @@
  * under the License.
  */
 var app = {
+    API_URL: "https://plbchat.herokuapp.com/messages",
     // Application Constructor
     initialize: function() {
         document.addEventListener('deviceready', this.onDeviceReady.bind(this), false);
@@ -27,19 +28,87 @@ var app = {
     // Bind any cordova events here. Common events are:
     // 'pause', 'resume', etc.
     onDeviceReady: function() {
-        this.receivedEvent('deviceready');
+        document.getElementById("send").addEventListener("click", this.postMessage.bind(this));
+        this.getMessagesAtInterval();
     },
 
-    // Update DOM on a Received Event
-    receivedEvent: function(id) {
-        var parentElement = document.getElementById(id);
-        var listeningElement = parentElement.querySelector('.listening');
-        var receivedElement = parentElement.querySelector('.received');
+    // Call getMessages() at interval
+    getMessagesAtInterval: function() {
+        setInterval(() => {
+            this.getMessages();
+        }, 500);
+    },
 
-        listeningElement.setAttribute('style', 'display:none;');
-        receivedElement.setAttribute('style', 'display:block;');
+    // Call the chat API
+    getMessages: function() {
+        fetch(this.API_URL)
+            .then(response => response.json())
+            .then(responseJson => {
+                this.displayChat(responseJson);
+            }).catch(err => {
+                console.log(err);
+            })
+    },
 
-        console.log('Received Event: ' + id);
+    // Display the messages in the chat
+    displayChat: function(messages) {
+        messages.reverse();
+        let chat = document.getElementById("chat");
+
+        // Remove all the messages in the chat
+        while (chat.firstChild) {
+            chat.removeChild(chat.firstChild);
+        }
+
+        // "for of" is like a foreach
+        for(let message of messages) {
+            if(message.length != 0 
+                && message.pseudo.length != 0
+                && message.message.length != 0) {
+
+                    let elMessage = document.createElement("p");
+                    elMessage.innerText = `${message.pseudo} : ${message.message}`
+
+                    chat.appendChild(elMessage);
+                }
+        }
+    },
+
+    // Add new message
+    postMessage: function() {
+        let pseudo = document.getElementById("username").value;
+        let message = document.getElementById("message").value;
+
+        let fetchOptions = {
+            method: "POST",
+            mode: "no-cors",
+            headers: new Headers({
+                "Content-Type": "application/x-www-form-urlencoded"
+            }),
+            body: `pseudo=${pseudo}&message=${message}`
+        }
+
+        // Send the request only if a pseudo and a message are given.
+        if(pseudo.length != 0 && message.length != 0) {
+            fetch(this.API_URL, fetchOptions)
+            .then(response => response.json())
+            .then(responseJson => {
+                this.addMessage(response);
+            })
+            .catch(err => console.log(err));
+        }
+    },
+
+    // add a message on top of the list
+    addMessage: function(response) {
+        let chat = document.getElementById("chat");
+        let firstChild = chat.firstChild;
+
+        if(response.pseudo.length != 0 && response.message.length != 0) {
+            let message = `${response.pseudo} : ${response.message}`;
+
+        chat.insertBefore(message, firstChild);
+        }
     }
 };
 
